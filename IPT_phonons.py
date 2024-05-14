@@ -63,6 +63,9 @@ class Parameters:
         self.model = params['model']
         self.mu_0 = params['mu_0']
         self.csi = params['csi']  # needed for disorder
+        self.g = params['g'] #el-ph coupling
+        self.k = params['k'] #k of the phonons
+        self.disPoints = params['disPoints'] #Number of disorder/phonons points
     
     def Check(self):
         #check if parameters reasonable
@@ -145,6 +148,9 @@ def readParameters(filename):
     fix_n=False 
     n_aim=0.47
     model="simple_dirac"
+    k=1.0
+    g=1.0
+    disPoints=21
     for line in file:
         parameterList.append(line)
     for i in range(0,len(parameterList)):
@@ -246,7 +252,19 @@ def readParameters(filename):
         if( parameterToSet=="dopedMode_type"):
             value = setParameter(parameter)
             if value != 0:
-                dopedMode_type= int(value.strip())     
+                dopedMode_type= int(value.strip())          
+        if( parameterToSet=="k"):
+            value = setParameter(parameter)
+            if value != 0:
+                k= float(value.strip())          
+        if( parameterToSet=="g"):
+            value = setParameter(parameter)
+            if value != 0:
+                g= float(value.strip())          
+        if( parameterToSet=="disPoints"):
+            value = setParameter(parameter)
+            if value != 0:
+                disPoints= int(value.strip())
         if( parameterToSet=="outputN"):
             value = setParameter(parameter)
             if value != 0:
@@ -290,6 +308,9 @@ def readParameters(filename):
            ksum,\
            d,\
            l,\
+           k,\
+           g,\
+           disPoints,\
            dopedMode,\
            dopedMode_type,\
            outputN,\
@@ -481,6 +502,12 @@ def freq_index(w,omega_max,omegastep):
     index= int(((w+omega_max)/omegastep).real)
     return index
 
+def ImFreq(z, eps, funReFreq):
+    de = eps[1]-eps[0]
+    factor = funReFreq*(1/(z-eps))
+    #total = np.trapz(factor, eps)
+    total = np.sum(factor*de, axis=0)
+    return -total/math.pi
 
 #+---------------------------------------------------------------------+
 #PURPOSE  :General function for organizing parallel processing
@@ -735,6 +762,36 @@ class Solver:
         self.n = getn(self.omega,self.g_csi,self.fermi,para)
 
 #+---------------------------------------------------------------------+
+#PURPOSE  : Calculate the electron Energy
+#+---------------------------------------------------------------------+
+
+def electron_Energy(omega,delta,sigma_csi,g_csi,para):
+    n_im_freq = 100
+    z = np.zeros(n_im_freq*2+1, dtype= complex)
+    sigma_csi_iw = np.zeros(len(z), dtype= complex)
+    g_csi_iw = np.zeros(len(z), dtype= complex)
+    delta_iw = np.zeros(len(z), dtype= complex)
+
+
+    z = 1j*(2*np.arange(-n_im_freq,n_im_freq+1,1,dtype=int)+1)*math.pi/para.beta
+    for n in range(0,len(z)):
+        # Calculated with Hilbert (rho lin)
+        #sigma_iw[n] = Hilbert(z[n], omega, Im_Sigma)
+        # Integral performed numerically
+        delta_iw[n] = ImFreq(z[n],omega,delta)
+        sigma_csi_iw[n] = ImFreq(z[n],omega,sigma_csi)
+        g_csi_iw[n] = ImFreq(z[n],omega,g_csi)
+
+    data1 = np.column_stack((np.imag(z),np.imag(delta_iw),np.imag(sigma_csi_iw),np.imag(g_csi_iw)))
+    filename1=filename1 = "ImFreqim_%.3f_%.3f.dat" % (para.csi,para.mu_tilde)
+    np.savetxt(filename1, data1)
+    data1 = np.column_stack((np.imag(z),np.real(delta_iw),np.real(sigma_csi_iw),np.real(g_csi_iw)))
+    filename1=filename1 = "ImFreqre_%.3f_%.3f.dat" % (para.csi,para.mu_tilde)
+    np.savetxt(filename1, data1)
+    
+    return np.sum((delta_iw-para.g*para.csi-sigma_csi_iw/2.0)*g_csi_iw)/para.beta
+
+#+---------------------------------------------------------------------+
 #PURPOSE  : Interpolating integral for the disorder
 #+---------------------------------------------------------------------+
 
@@ -767,19 +824,19 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
 
     #load the vectors for the values of the disorder and respective probabilities
     dis = float(sys.argv[6])
-    k=1.0
     try:
         if dis==0.0:
             v=np.array([0.0], dtype=np.double)
             prob=1.0
         else:
-            v = np.linspace(-dis, dis,31)
-            prob = np.exp(-para.beta*k*v**2/(2.0))*(np.sqrt(k*para.beta/(2*math.pi)))
+            v = np.linspace(-dis, dis, para.disPoints)
+            prob = np.exp(-para.beta*para.k*v**2/(2.0))*(np.sqrt(para.k*para.beta/(2*math.pi)))
     except IOError:
         print("Error: impossible to read the disorder")
         sys.exit(6)
 
-    sigmaxi=np.zeros(len(v), dtype=np.complex)
+    sigmaxi = np.zeros(len(v), dtype=np.complex)
+    Eel = np.zeros((len(v),para.nbands,para.nbands), dtype=np.complex)
 
     print('values for disorder=',v)
     print('probabilities=',prob)
@@ -853,12 +910,16 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
                     print( "DID NOT FIND MU_TILDE !!!",  S.n, S.n0, para.mu_tilde, para.mu,incr)
                     para.mu_tilde=para.mu
             
-            print("counter mu tilde = ", counter, S.n, S.n0, para.mu_tilde)
+            #print("counter mu tilde = ", counter, S.n, S.n0, para.mu_tilde)
             
             #save in memory for next iteration g_csi 
             g_csi_tot[:,:,:,i_csi] = S.g_csi[:,:,:]
             s_csi_tot[:,:,:,i_csi] = S.sigma_csi[:,:,:]
             mutilde_csi[i_csi] = para.mu_tilde
+
+            for band in range(0,para.nbands):
+                Eel[i_csi,band,band] = electron_Energy(omega,delta[:,band,band],S.sigma_csi[:,band,band],S.g_csi[:,band,band],para)
+
             data1 = np.column_stack((np.real(omega),np.imag(S.g_csi[:,0,0]),np.real(S.g_csi[:,0,0])))
             filename1=filename1 = "g_csi_%.3f_it_%d.dat" % (para.csi, l)
             np.savetxt(filename1, data1)
@@ -866,11 +927,25 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             filename1=filename1 = "s_csi_%.3f_it_%d.dat" % (para.csi, l)
             np.savetxt(filename1, data1)
 
+        # Calculate the probability of thermal phonons
+
         # Calculate the average over the disorder of gloc
         #gloc = np.sum(g_csi_tot*prob, axis=-1)*abs(v[1]-v[0])
-        # Average with the linear interpolation
+        # Average with the linear interpolation (NumHilbert_disorder)
         for band in range(0,para.nbands):
-             for w in range (0,len(omega)):
+            probnonorm = np.exp(-para.beta*para.k*v**2/2.0)+np.exp(-Eel[:,band,band]*para.beta)
+            #data1 = np.column_stack((np.real(v),np.real(probnonorm)))
+            #filename1="probnonorm_" + str(l) + ".dat"
+            #np.savetxt(filename1, data1)
+            #data1 = np.column_stack((np.real(v),np.imag(Eel[:,band,band]),np.real(Eel[:,band,band])))
+            #filename1="Eel_" + str(l) + ".dat"
+            #np.savetxt(filename1, data1)
+            N = integrate.trapz(probnonorm,v)
+            #prob = probnonorm/N
+            #data1 = np.column_stack((np.real(v),np.real(prob)))
+            #filename1="prob_" + str(l) + ".dat"
+            np.savetxt(filename1, data1)
+            for w in range (0,len(omega)):
                 z = omega[w] + para.mu - delta[w,band,band]
                 sigmaxi[:] = s_csi_tot[w,band,band,:]
                 gloc[w,band,band] = NumHilbert_disorder(z, prob, v, sigmaxi)
@@ -1043,6 +1118,9 @@ def initialize():
         d = 1  # half-bandwidth for bethe lattice, cutoff for Dirac. Be careful with normalization in Dirac Case. Nomralized to 1 for d=1 !!!
         l = 0.5 # Cutoff for quadratic DOS in dirac_square 
                #omega grid type,possible values: linear, quadratic, linquad; not sure if non-linear ones are still working,
+        k=1.0
+        g=1.0
+        disPoints=21
         omega_grid="linear"
         model = "simple_dirac" # only neede when ksum = 1 is used
         dopedMode=True # if True: dopedMode_type,outputN,mu_tilde,fix_n should be set (which one depends on type)
@@ -1070,6 +1148,9 @@ def initialize():
         ksum,\
         d,\
         l,\
+        k,\
+        g,\
+        disPoints,\
         dopedMode,\
         dopedMode_type,\
         outputN,\
@@ -1095,6 +1176,9 @@ def initialize():
     # write parameters into Parameter object
     parameters = Parameters(d=d,\
                             l=l,\
+                            g=g,\
+                            k=k,\
+                            disPoints=disPoints,\
                             nbands= nbands,\
                             ULOC=ULOC,\
                             UST=UST,\
