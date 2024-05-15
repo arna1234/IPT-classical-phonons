@@ -16,7 +16,7 @@ from numpy import linalg as LA
 from scipy.fftpack import fft, ifft
 #import matplotlib.pyplot as plt
 import pyximport; pyximport.install(language_level=3,setup_args={"include_dirs":np.get_include()})
-import auxiliaries
+import auxiliaries # type: ignore
 
 sigma0 = np.matrix('1 0; 0 1')
 sigma1 = np.matrix('0 1; 1 0')
@@ -504,7 +504,7 @@ def freq_index(w,omega_max,omegastep):
 
 def ImFreq(z, eps, funReFreq):
     de = eps[1]-eps[0]
-    factor = funReFreq*(1/(z-eps))
+    factor = np.imag(funReFreq)*(1/(z-eps))
     #total = np.trapz(factor, eps)
     total = np.sum(factor*de, axis=0)
     return -total/math.pi
@@ -781,13 +781,6 @@ def electron_Energy(omega,delta,sigma_csi,g_csi,para):
         delta_iw[n] = ImFreq(z[n],omega,delta)
         sigma_csi_iw[n] = ImFreq(z[n],omega,sigma_csi)
         g_csi_iw[n] = ImFreq(z[n],omega,g_csi)
-
-    data1 = np.column_stack((np.imag(z),np.imag(delta_iw),np.imag(sigma_csi_iw),np.imag(g_csi_iw)))
-    filename1=filename1 = "ImFreqim_%.3f_%.3f.dat" % (para.csi,para.mu_tilde)
-    np.savetxt(filename1, data1)
-    data1 = np.column_stack((np.imag(z),np.real(delta_iw),np.real(sigma_csi_iw),np.real(g_csi_iw)))
-    filename1=filename1 = "ImFreqre_%.3f_%.3f.dat" % (para.csi,para.mu_tilde)
-    np.savetxt(filename1, data1)
     
     return np.sum((delta_iw-para.g*para.csi-sigma_csi_iw/2.0)*g_csi_iw)/para.beta
 
@@ -829,7 +822,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             v=np.array([0.0], dtype=np.double)
             prob=1.0
         else:
-            v = np.linspace(-dis, dis, para.disPoints)
+            v = np.linspace(-(dis)**(1./3.), (dis)**(1./3.), para.disPoints)**3
             prob = np.exp(-para.beta*para.k*v**2/(2.0))*(np.sqrt(para.k*para.beta/(2*math.pi)))
     except IOError:
         print("Error: impossible to read the disorder")
@@ -920,12 +913,12 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             for band in range(0,para.nbands):
                 Eel[i_csi,band,band] = electron_Energy(omega,delta[:,band,band],S.sigma_csi[:,band,band],S.g_csi[:,band,band],para)
 
-            data1 = np.column_stack((np.real(omega),np.imag(S.g_csi[:,0,0]),np.real(S.g_csi[:,0,0])))
-            filename1=filename1 = "g_csi_%.3f_it_%d.dat" % (para.csi, l)
-            np.savetxt(filename1, data1)
-            data1 = np.column_stack((np.real(omega),np.imag(S.sigma_csi[:,0,0]),np.real(S.sigma_csi[:,0,0])))
-            filename1=filename1 = "s_csi_%.3f_it_%d.dat" % (para.csi, l)
-            np.savetxt(filename1, data1)
+            #data1 = np.column_stack((np.real(omega),np.imag(S.g_csi[:,0,0]),np.real(S.g_csi[:,0,0])))
+            #filename1=filename1 = "g_csi_%.3f_it_%d.dat" % (para.csi, l)
+            #np.savetxt(filename1, data1)
+            #data1 = np.column_stack((np.real(omega),np.imag(S.sigma_csi[:,0,0]),np.real(S.sigma_csi[:,0,0])))
+            #filename1=filename1 = "s_csi_%.3f_it_%d.dat" % (para.csi, l)
+            #np.savetxt(filename1, data1)
 
         # Calculate the probability of thermal phonons
 
@@ -933,22 +926,23 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         #gloc = np.sum(g_csi_tot*prob, axis=-1)*abs(v[1]-v[0])
         # Average with the linear interpolation (NumHilbert_disorder)
         for band in range(0,para.nbands):
-            probnonorm = np.exp(-para.beta*para.k*v**2/2.0)+np.exp(-Eel[:,band,band]*para.beta)
-            #data1 = np.column_stack((np.real(v),np.real(probnonorm)))
-            #filename1="probnonorm_" + str(l) + ".dat"
-            #np.savetxt(filename1, data1)
-            #data1 = np.column_stack((np.real(v),np.imag(Eel[:,band,band]),np.real(Eel[:,band,band])))
-            #filename1="Eel_" + str(l) + ".dat"
-            #np.savetxt(filename1, data1)
-            N = integrate.trapz(probnonorm,v)
-            #prob = probnonorm/N
-            #data1 = np.column_stack((np.real(v),np.real(prob)))
-            #filename1="prob_" + str(l) + ".dat"
+            prob = np.exp(-para.beta*(para.k*v**2/2.0 - np.real(Eel[:,band,band])))
+
+
+            data1 = np.column_stack((np.real(v),np.imag(Eel[:,band,band]),np.real(Eel[:,band,band])))
+            filename1="Eel_" + str(l) + ".dat"
             np.savetxt(filename1, data1)
+            data1 = np.column_stack((np.real(v),np.real(prob)))
+            filename1="prob_" + str(l) + ".dat"
+            np.savetxt(filename1, data1)
+
+            N = integrate.trapz(prob,v)
+
+
             for w in range (0,len(omega)):
                 z = omega[w] + para.mu - delta[w,band,band]
                 sigmaxi[:] = s_csi_tot[w,band,band,:]
-                gloc[w,band,band] = NumHilbert_disorder(z, prob, v, sigmaxi)
+                gloc[w,band,band] = NumHilbert_disorder(z, prob, v, sigmaxi)/N
         #
 
         data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
