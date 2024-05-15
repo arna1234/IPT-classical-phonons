@@ -873,7 +873,6 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
 
             para.csi = v[i_csi]
             para.mu_tilde = mutilde_csi[i_csi]
-            print("csi=", para.csi)
             searching=True
             counter=0
             S.solve(para,delta)
@@ -920,12 +919,10 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             #filename1=filename1 = "s_csi_%.3f_it_%d.dat" % (para.csi, l)
             #np.savetxt(filename1, data1)
 
-        # Calculate the probability of thermal phonons
 
-        # Calculate the average over the disorder of gloc
-        #gloc = np.sum(g_csi_tot*prob, axis=-1)*abs(v[1]-v[0])
         # Average with the linear interpolation (NumHilbert_disorder)
         for band in range(0,para.nbands):
+            # Calculate the probability of thermal phonons
             prob = np.exp(-para.beta*(para.k*v**2/2.0 - np.real(Eel[:,band,band])))
 
 
