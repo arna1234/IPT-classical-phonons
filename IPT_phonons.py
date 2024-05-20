@@ -658,7 +658,10 @@ def Calc_Sigma(omega,g0,number_of_threads,para):
         omega = omega[int((len(omega)-1)/2):len(omega)]
 
     points=np.real(omega)
-    sigma=parallel_function(Sigma_thread,number_of_threads,points,np.zeros((0,  para.nbands,  para.nbands)),(full_omega,g0,fermi,p1,p2,para))
+    if para.ULOC != 0:
+        sigma=parallel_function(Sigma_thread,number_of_threads,points,np.zeros((0,  para.nbands,  para.nbands)),(full_omega,g0,fermi,p1,p2,para))
+    else:
+        sigma = np.zeros((len(omega), para.nbands, para.nbands), dtype=np.complex)
 
     if symm:
         new_sigma= np.zeros((int((len(full_omega)-1)/2),  para.nbands,  para.nbands), dtype=np.complex)
@@ -766,7 +769,7 @@ class Solver:
 #+---------------------------------------------------------------------+
 
 def electron_Energy(omega,delta,sigma_csi,g_csi,para):
-    n_im_freq = 100
+    n_im_freq = 200
     z = np.zeros(n_im_freq*2+1, dtype= complex)
     sigma_csi_iw = np.zeros(len(z), dtype= complex)
     g_csi_iw = np.zeros(len(z), dtype= complex)
@@ -782,7 +785,7 @@ def electron_Energy(omega,delta,sigma_csi,g_csi,para):
         sigma_csi_iw[n] = ImFreq(z[n],omega,sigma_csi)
         g_csi_iw[n] = ImFreq(z[n],omega,g_csi)
     
-    return np.sum((delta_iw-para.g*para.csi-sigma_csi_iw/2.0)*g_csi_iw)/para.beta
+    return 2.0*np.sum((delta_iw-para.g*para.csi-sigma_csi_iw/2.0)*g_csi_iw)/para.beta
 
 #+---------------------------------------------------------------------+
 #PURPOSE  : Interpolating integral for the disorder
@@ -822,7 +825,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             v=np.array([0.0], dtype=np.double)
             prob=1.0
         else:
-            v = np.linspace(-(dis)**(1./3.), (dis)**(1./3.), para.disPoints)**3
+            v = np.linspace(-dis, dis, para.disPoints) #np.linspace(-(dis)**(1./3.), (dis)**(1./3.), para.disPoints)**3
             prob = np.exp(-para.beta*para.k*v**2/(2.0))*(np.sqrt(para.k*para.beta/(2*math.pi)))
     except IOError:
         print("Error: impossible to read the disorder")
@@ -923,7 +926,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         # Average with the linear interpolation (NumHilbert_disorder)
         for band in range(0,para.nbands):
             # Calculate the probability of thermal phonons
-            prob = np.exp(-para.beta*(para.k*v**2/2.0 - np.real(Eel[:,band,band])))
+            prob = np.exp(-para.beta*(para.k*v**2/2.0 + np.real(Eel[:,band,band])))
 
 
             data1 = np.column_stack((np.real(v),np.imag(Eel[:,band,band]),np.real(Eel[:,band,band])))
@@ -1045,6 +1048,12 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
           filename1="sigma_" + str(iband) + str(jband)+ ".dat"
           np.savetxt(filename1, data1)
     else:
+          data1 = np.column_stack((np.real(v),np.imag(Eel[:,0,0]),np.real(Eel[:,0,0])))
+          filename1="Eel.dat"
+          np.savetxt(filename1, data1)
+          data1 = np.column_stack((np.real(v),np.real(prob)))
+          filename1="prob.dat"
+          np.savetxt(filename1, data1)
           data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
           filename1="gloc_" + str(0) + str(0)+ ".dat"
           np.savetxt(filename1, data1)
