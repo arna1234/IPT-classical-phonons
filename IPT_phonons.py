@@ -659,7 +659,7 @@ def Calc_Sigma(omega,g0,number_of_threads,para):
 
     points=np.real(omega)
     if para.ULOC != 0:
-        sigma=parallel_function(Sigma_thread,number_of_threads,points,np.zeros((0,  para.nbands,  para.nbands)),(full_omega,g0,fermi,p1,p2,para))
+        sigma = parallel_function(Sigma_thread,number_of_threads,points,np.zeros((0,  para.nbands,  para.nbands)),(full_omega,g0,fermi,p1,p2,para))
     else:
         sigma = np.zeros((len(omega), para.nbands, para.nbands), dtype=np.complex)
 
