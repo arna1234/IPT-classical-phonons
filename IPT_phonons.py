@@ -785,7 +785,7 @@ def electron_Energy(omega,delta,sigma_csi,g_csi,para):
         sigma_csi_iw[n] = ImFreq(z[n],omega,sigma_csi)
         g_csi_iw[n] = ImFreq(z[n],omega,g_csi)
     
-    return 2.0*np.sum((delta_iw-para.g*para.csi-sigma_csi_iw/2.0)*g_csi_iw)/para.beta
+    return 2.0*np.sum((delta_iw-para.csi-sigma_csi_iw/2.0)*g_csi_iw)/para.beta
 
 #+---------------------------------------------------------------------+
 #PURPOSE  : Interpolating integral for the disorder
@@ -826,7 +826,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             prob=1.0
         else:
             v = np.linspace(-dis, dis, para.disPoints) #np.linspace(-(dis)**(1./3.), (dis)**(1./3.), para.disPoints)**3
-            prob = np.exp(-para.beta*para.k*v**2/(2.0))*(np.sqrt(para.k*para.beta/(2*math.pi)))
+            prob = np.exp(-para.beta*para.k*v**2/(2.0))
     except IOError:
         print("Error: impossible to read the disorder")
         sys.exit(6)
@@ -843,6 +843,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
     g0 = np.zeros((para.omegasteps,para.nbands,para.nbands) ,dtype=np.complex)
     gloc = g0.copy()
     nada = g0.copy()
+    n_csi_tot = np.zeros((len(v),para.nbands,para.nbands) ,dtype=np.double)
     g_csi_tot = np.zeros((para.omegasteps,para.nbands,para.nbands,len(v)) ,dtype=np.complex)
     s_csi_tot = np.zeros((para.omegasteps,para.nbands,para.nbands,len(v)) ,dtype=np.complex)
     mutilde_csi = np.zeros(len(v),dtype=np.double)
@@ -858,7 +859,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
     for i_csi in range(0,len(v)):
         s_csi_tot[:,:,:,i_csi] = S.sigma_csi[:,:,:]
         g_csi_tot[:,:,:,i_csi] = gloc[:,:,:]
-        mutilde_csi[i_csi]=v[i_csi]
+        mutilde_csi[i_csi]=para.g*v[i_csi]
 
     for band in range(0,para.nbands):
         g0[:,band,band] = 1.0/( omega[:] - delta[:,band,band] + (para.mu)*np.ones(len(omega),dtype=np.complex))
@@ -874,7 +875,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
 
         for i_csi in range(0,len(v)):
 
-            para.csi = v[i_csi]
+            para.csi = para.g*v[i_csi]
             para.mu_tilde = mutilde_csi[i_csi]
             searching=True
             counter=0
@@ -904,10 +905,10 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
                     searching=False
                     print( "DID NOT FIND MU_TILDE !!!",  S.n, S.n0, para.mu_tilde, para.mu,incr)
                     para.mu_tilde=para.mu
-            
             #print("counter mu tilde = ", counter, S.n, S.n0, para.mu_tilde)
             
-            #save in memory for next iteration g_csi 
+            #save in memory g_csi, s_csi and n
+            n_csi_tot[i_csi,:,:]=S.n
             g_csi_tot[:,:,:,i_csi] = S.g_csi[:,:,:]
             s_csi_tot[:,:,:,i_csi] = S.sigma_csi[:,:,:]
             mutilde_csi[i_csi] = para.mu_tilde
@@ -924,25 +925,26 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
 
 
         # Average with the linear interpolation (NumHilbert_disorder)
-        for band in range(0,para.nbands):
+        for band in range(0,para.nbands):         
             # Calculate the probability of thermal phonons
-            prob = np.exp(-para.beta*(para.k*v**2/2.0 + np.real(Eel[:,band,band])))
+            prob = np.exp(-para.beta*(para.k*v**2/(2.0) + np.real(Eel[:,band,band]) ) )
 
 
             data1 = np.column_stack((np.real(v),np.imag(Eel[:,band,band]),np.real(Eel[:,band,band])))
             filename1="Eel_" + str(l) + ".dat"
             np.savetxt(filename1, data1)
-            data1 = np.column_stack((np.real(v),np.real(prob)))
+            
+            N = integrate.trapz(prob,v)
+            probN = prob/N
+            Nvec = N*np.ones(len(v),dtype=np.double)
+            data1 = np.column_stack((np.real(v),np.real(prob),Nvec))
             filename1="prob_" + str(l) + ".dat"
             np.savetxt(filename1, data1)
-
-            N = integrate.trapz(prob,v)
-
 
             for w in range (0,len(omega)):
                 z = omega[w] + para.mu - delta[w,band,band]
                 sigmaxi[:] = s_csi_tot[w,band,band,:]
-                gloc[w,band,band] = NumHilbert_disorder(z, prob, v, sigmaxi)/N
+                gloc[w,band,band] = NumHilbert_disorder(z, probN/para.g, para.g*v, sigmaxi)
         #
 
         data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
@@ -1035,6 +1037,8 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
     np.savetxt(filename1, data1)
 
     #write final iteration to  file
+
+
     if para.nbands >1:
       for iband in range(0,para.nbands):
         for jband in range(0,para.nbands):
@@ -1048,10 +1052,21 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
           filename1="sigma_" + str(iband) + str(jband)+ ".dat"
           np.savetxt(filename1, data1)
     else:
+          
+          for i_csi in range(0,len(v)):
+              data1 = np.column_stack((np.real(omega),np.imag(g_csi_tot[:,0,0,i_csi]),np.real(g_csi_tot[:,0,0,i_csi])))
+              filename1=filename1 = "g_csi_%.3f.dat" % (v[i_csi])
+              np.savetxt(filename1, data1)
+              data1 = np.column_stack((np.real(omega),np.imag(s_csi_tot[:,0,0,i_csi]),np.real(s_csi_tot[:,0,0,i_csi])))
+              filename1=filename1 = "s_csi_%.3f.dat" % (v[i_csi])
+              np.savetxt(filename1, data1)
+          data1 = np.column_stack((np.real(v),np.real(n_csi_tot[:,0,0])))
+          filename1=filename1 = "n_csi.dat"
+          np.savetxt(filename1, data1)
           data1 = np.column_stack((np.real(v),np.imag(Eel[:,0,0]),np.real(Eel[:,0,0])))
           filename1="Eel.dat"
           np.savetxt(filename1, data1)
-          data1 = np.column_stack((np.real(v),np.real(prob)))
+          data1 = np.column_stack((np.real(v),np.real(prob),Nvec))
           filename1="prob.dat"
           np.savetxt(filename1, data1)
           data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
