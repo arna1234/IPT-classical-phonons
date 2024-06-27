@@ -924,7 +924,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             #np.savetxt(filename1, data1)
 
 
-        # Average with the linear interpolation (NumHilbert_disorder)
+        # Average gloc (with phonon probability (prob) and the linear interpolation (NumHilbert_disorder))
         for band in range(0,para.nbands):         
             # Calculate the probability of thermal phonons
             prob = np.exp(-para.beta*(para.k*v**2/(2.0) + np.real(Eel[:,band,band]) ) )
@@ -950,19 +950,10 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
         filename1="gav_" + str(l) + ".dat"
         np.savetxt(filename1, data1)
-        data1 = np.column_stack((np.real(omega),np.imag(g0[:,0,0]),np.real(g0[:,0,0])))
-        filename1="g0_" + str(l) + ".dat"
-        np.savetxt(filename1, data1)
-        data1 = np.column_stack((np.real(omega),np.imag(delta[:,0,0]),np.real(delta[:,0,0])))
-        filename1="delta_" + str(l) + ".dat"
-        np.savetxt(filename1, data1)
-
-        delta[:] = (para.d*para.d)/4.0*gloc[:] 
 
         for band in range(0,para.nbands):
             g0[:,band,band] = 1.0/( omega[:] - delta[:,band,band] + (para.mu)*np.ones(para.omegasteps,dtype=np.complex))
-
-
+        
         #Calculate the self-energy with the Dyson equation
         sigma[:]=inv(g0[:])-inv(gloc[:]) #+ para.mu*np.identity(para.nbands,dtype=np.complex) #+ (para.mu-para.mu_tilde) *np.identity(para.nbands,dtype=np.complex)
 
@@ -972,6 +963,15 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
 
         nada, gloc = Calc_g0_and_gLoc(omega,hamiltonianList,sigma,number_of_threads,para)
 
+        # update delta and G0
+        delta[:] = (para.d*para.d)/4.0*gloc[:] 
+
+        for band in range(0,para.nbands):
+            g0[:,band,band] = 1.0/( omega[:] - delta[:,band,band] + (para.mu)*np.ones(para.omegasteps,dtype=np.complex))
+
+        data1 = np.column_stack((np.real(omega),np.imag(delta[:,0,0]),np.real(delta[:,0,0])))
+        filename1="delta_" + str(l) + ".dat"
+        np.savetxt(filename1, data1)
 
 
 #---------------------------------------------------------------------------------------------------------------------------
@@ -1024,9 +1024,6 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
         filename1="g_" + str(l) + ".dat"
         np.savetxt(filename1, data1)
-        #data1 = np.column_stack((np.real(omega),np.imag(g0[:,0,0]),np.real(g0[:,0,0])))
-        #filename1="g0_" + str(l) + ".dat"
-        #np.savetxt(filename1, data1)
         
 #---------------------------------------------------------------------------------------------------------------------------
 
