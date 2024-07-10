@@ -62,6 +62,7 @@ class Parameters:
         self.omega_grid = params['omega_grid']
         self.model = params['model']
         self.mu_0 = params['mu_0']
+        self.adaptivePhonons = params['adaptivePhonons']
         self.csi = params['csi']  # needed for disorder
         self.g = params['g'] #el-ph coupling
         self.k = params['k'] #k of the phonons
@@ -148,6 +149,7 @@ def readParameters(filename):
     fix_n=False 
     n_aim=0.47
     model="simple_dirac"
+    adaptivePhonons=True
     k=1.0
     g=1.0
     disPoints=21
@@ -193,6 +195,12 @@ def readParameters(filename):
                 adaptiveMixing=False
                 if value.strip() in ["True", "true", "1"]:
                     adaptiveMixing= True
+        if( parameterToSet=="adaptivePhonons"):
+            value = setParameter(parameter)
+            if value != 0:
+                adaptivePhonons=False
+                if value.strip() in ["True", "true", "1"]:
+                    adaptivePhonons= True
         if( parameterToSet=="readold"):
             value = setParameter(parameter)
             if value != 0:
@@ -308,6 +316,7 @@ def readParameters(filename):
            ksum,\
            d,\
            l,\
+           adaptivePhonons,\
            k,\
            g,\
            disPoints,\
@@ -826,7 +835,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             prob=1.0
         else:
             v = np.linspace(-dis, dis, para.disPoints) #np.linspace(-(dis)**(1./3.), (dis)**(1./3.), para.disPoints)**3
-            prob = np.exp(-para.beta*para.k*v**2/(2.0))
+            prob = np.exp(-v**2/(2.0))
     except IOError:
         print("Error: impossible to read the disorder")
         sys.exit(6)
@@ -913,8 +922,9 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             s_csi_tot[:,:,:,i_csi] = S.sigma_csi[:,:,:]
             mutilde_csi[i_csi] = para.mu_tilde
 
-            for band in range(0,para.nbands):
-                Eel[i_csi,band,band] = electron_Energy(omega,delta[:,band,band],S.sigma_csi[:,band,band],S.g_csi[:,band,band],para)
+            if para.adaptivePhonons:
+                for band in range(0,para.nbands):
+                    Eel[i_csi,band,band] = electron_Energy(omega,delta[:,band,band],S.sigma_csi[:,band,band],S.g_csi[:,band,band],para)
 
             #data1 = np.column_stack((np.real(omega),np.imag(S.g_csi[:,0,0]),np.real(S.g_csi[:,0,0])))
             #filename1=filename1 = "g_csi_%.3f_it_%d.dat" % (para.csi, l)
@@ -927,12 +937,13 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         # Average gloc (with phonon probability (prob) and the linear interpolation (NumHilbert_disorder))
         for band in range(0,para.nbands):         
             # Calculate the probability of thermal phonons
-            prob = np.exp(-para.beta*(para.k*v**2/(2.0) + np.real(Eel[:,band,band]) ) )
+            if para.adaptivePhonons:
+                prob = np.exp(-para.beta*(para.k*v**2/(2.0) + np.real(Eel[:,band,band]) ) )
 
 
-            data1 = np.column_stack((np.real(v),np.imag(Eel[:,band,band]),np.real(Eel[:,band,band])))
-            filename1="Eel_" + str(l) + ".dat"
-            np.savetxt(filename1, data1)
+            #data1 = np.column_stack((np.real(v),np.imag(Eel[:,band,band]),np.real(Eel[:,band,band])))
+            #filename1="Eel_" + str(l) + ".dat"
+            #np.savetxt(filename1, data1)
             
             N = integrate.trapz(prob,v)
             probN = prob/N
@@ -957,9 +968,9 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         #Calculate the self-energy with the Dyson equation
         sigma[:]=inv(g0[:])-inv(gloc[:]) #+ para.mu*np.identity(para.nbands,dtype=np.complex) #+ (para.mu-para.mu_tilde) *np.identity(para.nbands,dtype=np.complex)
 
-        data1 = np.column_stack((np.real(omega),np.imag(sigma[:,0,0]),np.real(sigma[:,0,0])))
-        filename1="s_" + str(l) + ".dat"
-        np.savetxt(filename1, data1)
+        #data1 = np.column_stack((np.real(omega),np.imag(sigma[:,0,0]),np.real(sigma[:,0,0])))
+        #filename1="s_" + str(l) + ".dat"
+        #np.savetxt(filename1, data1)
 
         nada, gloc = Calc_g0_and_gLoc(omega,hamiltonianList,sigma,number_of_threads,para)
 
@@ -969,9 +980,9 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         for band in range(0,para.nbands):
             g0[:,band,band] = 1.0/( omega[:] - delta[:,band,band] + (para.mu)*np.ones(para.omegasteps,dtype=np.complex))
 
-        data1 = np.column_stack((np.real(omega),np.imag(delta[:,0,0]),np.real(delta[:,0,0])))
-        filename1="delta_" + str(l) + ".dat"
-        np.savetxt(filename1, data1)
+        #data1 = np.column_stack((np.real(omega),np.imag(delta[:,0,0]),np.real(delta[:,0,0])))
+        #filename1="delta_" + str(l) + ".dat"
+        #np.savetxt(filename1, data1)
 
 
 #---------------------------------------------------------------------------------------------------------------------------
@@ -1021,9 +1032,9 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
 
 #--------PRINT Iterations --------------------------------------------------------------------------------------------------
 
-        data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
-        filename1="g_" + str(l) + ".dat"
-        np.savetxt(filename1, data1)
+        #data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
+        #filename1="g_" + str(l) + ".dat"
+        #np.savetxt(filename1, data1)
         
 #---------------------------------------------------------------------------------------------------------------------------
 
@@ -1050,19 +1061,19 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
           np.savetxt(filename1, data1)
     else:
           
-          for i_csi in range(0,len(v)):
-              data1 = np.column_stack((np.real(omega),np.imag(g_csi_tot[:,0,0,i_csi]),np.real(g_csi_tot[:,0,0,i_csi])))
-              filename1=filename1 = "g_csi_%.3f.dat" % (v[i_csi])
-              np.savetxt(filename1, data1)
-              data1 = np.column_stack((np.real(omega),np.imag(s_csi_tot[:,0,0,i_csi]),np.real(s_csi_tot[:,0,0,i_csi])))
-              filename1=filename1 = "s_csi_%.3f.dat" % (v[i_csi])
-              np.savetxt(filename1, data1)
+          #for i_csi in range(0,len(v)):
+          #    data1 = np.column_stack((np.real(omega),np.imag(g_csi_tot[:,0,0,i_csi]),np.real(g_csi_tot[:,0,0,i_csi])))
+          #    filename1=filename1 = "g_csi_%.3f.dat" % (v[i_csi])
+          #    np.savetxt(filename1, data1)
+          #    data1 = np.column_stack((np.real(omega),np.imag(s_csi_tot[:,0,0,i_csi]),np.real(s_csi_tot[:,0,0,i_csi])))
+          #    filename1=filename1 = "s_csi_%.3f.dat" % (v[i_csi])
+          #    np.savetxt(filename1, data1)
           data1 = np.column_stack((np.real(v),np.real(n_csi_tot[:,0,0])))
           filename1=filename1 = "n_csi.dat"
           np.savetxt(filename1, data1)
-          data1 = np.column_stack((np.real(v),np.imag(Eel[:,0,0]),np.real(Eel[:,0,0])))
-          filename1="Eel.dat"
-          np.savetxt(filename1, data1)
+          #data1 = np.column_stack((np.real(v),np.imag(Eel[:,0,0]),np.real(Eel[:,0,0])))
+          #filename1="Eel.dat"
+          #np.savetxt(filename1, data1)
           data1 = np.column_stack((np.real(v),np.real(prob),Nvec))
           filename1="prob.dat"
           np.savetxt(filename1, data1)
@@ -1130,6 +1141,7 @@ def initialize():
         d = 1  # half-bandwidth for bethe lattice, cutoff for Dirac. Be careful with normalization in Dirac Case. Nomralized to 1 for d=1 !!!
         l = 0.5 # Cutoff for quadratic DOS in dirac_square 
                #omega grid type,possible values: linear, quadratic, linquad; not sure if non-linear ones are still working,
+        adaptivePhonons=True #Phonons adaptive probability with the temperature and the "free energy" (taken as electron energy)
         k=1.0
         g=1.0
         disPoints=21
@@ -1160,6 +1172,7 @@ def initialize():
         ksum,\
         d,\
         l,\
+        adaptivePhonons,\
         k,\
         g,\
         disPoints,\
@@ -1188,6 +1201,7 @@ def initialize():
     # write parameters into Parameter object
     parameters = Parameters(d=d,\
                             l=l,\
+                            adaptivePhonons=adaptivePhonons,\
                             g=g,\
                             k=k,\
                             disPoints=disPoints,\
