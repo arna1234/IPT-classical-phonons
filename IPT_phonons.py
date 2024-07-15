@@ -842,6 +842,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
 
     sigmaxi = np.zeros(len(v), dtype=np.complex)
     Eel = np.zeros((len(v),para.nbands,para.nbands), dtype=np.complex)
+    Energy = np.zeros((len(v),para.nbands,para.nbands), dtype=np.complex)
 
     print('values for disorder=',v)
     print('probabilities=',prob)
@@ -939,7 +940,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             # Calculate the probability of thermal phonons
             if para.adaptivePhonons:
                 prob = np.exp(-para.beta*(para.k*v**2/(2.0) + np.real(Eel[:,band,band]) ) )
-
+            Energy[:,band,band] = para.k*v**2/(2.0) + np.real(Eel[:,band,band])
 
             #data1 = np.column_stack((np.real(v),np.imag(Eel[:,band,band]),np.real(Eel[:,band,band])))
             #filename1="Eel_" + str(l) + ".dat"
@@ -948,9 +949,9 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             N = integrate.trapz(prob,v)
             probN = prob/N
             Nvec = N*np.ones(len(v),dtype=np.double)
-            data1 = np.column_stack((np.real(v),np.real(prob),Nvec))
-            filename1="prob_" + str(l) + ".dat"
-            np.savetxt(filename1, data1)
+            #data1 = np.column_stack((np.real(v),np.real(prob),Nvec))
+            #filename1="prob_" + str(l) + ".dat"
+            #np.savetxt(filename1, data1)
 
             for w in range (0,len(omega)):
                 z = omega[w] + para.mu - delta[w,band,band]
@@ -958,9 +959,9 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
                 gloc[w,band,band] = NumHilbert_disorder(z, probN/para.g, para.g*v, sigmaxi)
         #
 
-        data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
-        filename1="gav_" + str(l) + ".dat"
-        np.savetxt(filename1, data1)
+        #data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
+        #filename1="gav_" + str(l) + ".dat"
+        #np.savetxt(filename1, data1)
 
         for band in range(0,para.nbands):
             g0[:,band,band] = 1.0/( omega[:] - delta[:,band,band] + (para.mu)*np.ones(para.omegasteps,dtype=np.complex))
@@ -1061,19 +1062,19 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
           np.savetxt(filename1, data1)
     else:
           
-          #for i_csi in range(0,len(v)):
+          for i_csi in range(0,len(v)):
           #    data1 = np.column_stack((np.real(omega),np.imag(g_csi_tot[:,0,0,i_csi]),np.real(g_csi_tot[:,0,0,i_csi])))
           #    filename1=filename1 = "g_csi_%.3f.dat" % (v[i_csi])
           #    np.savetxt(filename1, data1)
-          #    data1 = np.column_stack((np.real(omega),np.imag(s_csi_tot[:,0,0,i_csi]),np.real(s_csi_tot[:,0,0,i_csi])))
-          #    filename1=filename1 = "s_csi_%.3f.dat" % (v[i_csi])
-          #    np.savetxt(filename1, data1)
+              data1 = np.column_stack((np.real(omega),np.imag(s_csi_tot[:,0,0,i_csi]),np.real(s_csi_tot[:,0,0,i_csi])))
+              filename1=filename1 = "s_csi_%.3f.dat" % (v[i_csi])
+              np.savetxt(filename1, data1)
           data1 = np.column_stack((np.real(v),np.real(n_csi_tot[:,0,0])))
           filename1=filename1 = "n_csi.dat"
           np.savetxt(filename1, data1)
-          #data1 = np.column_stack((np.real(v),np.imag(Eel[:,0,0]),np.real(Eel[:,0,0])))
-          #filename1="Eel.dat"
-          #np.savetxt(filename1, data1)
+          data1 = np.column_stack((np.real(v),np.imag(Energy[:,0,0]),np.real(Energy[:,0,0])))
+          filename1="Energy.dat"
+          np.savetxt(filename1, data1)
           data1 = np.column_stack((np.real(v),np.real(prob),Nvec))
           filename1="prob.dat"
           np.savetxt(filename1, data1)
