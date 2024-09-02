@@ -845,7 +845,6 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
     Energy = np.zeros((len(v),para.nbands,para.nbands), dtype=np.complex)
 
     print('values for disorder=',v)
-    print('probabilities=',prob)
 
     S = Solver(para,omega,fermi,number_of_threads)
     #initialize the quantities for different csi 
@@ -1005,6 +1004,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         #filename1="delta_" + str(l) + ".dat"
         #np.savetxt(filename1, data1)
 
+    print('probability=',prob)
 
 #---------------------------------------------------------------------------------------------------------------------------
 #------------------------CONVERGENCE----------------------------------------------------------------------------------------
