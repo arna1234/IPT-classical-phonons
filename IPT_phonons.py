@@ -923,8 +923,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
             s_csi_tot[:,:,:,i_csi] = S.sigma_csi[:,:,:]
             mutilde_csi[i_csi] = para.mu_tilde
 
-            if para.adaptivePhonons:
-                for band in range(0,para.nbands):
+            for band in range(0,para.nbands):
                     Eel[i_csi,band,band] = electron_Energy(omega,delta[:,band,band],S.sigma_csi[:,band,band],S.g_csi[:,band,band],para)
 
             #data1 = np.column_stack((np.real(omega),np.imag(S.g_csi[:,0,0]),np.real(S.g_csi[:,0,0])))
