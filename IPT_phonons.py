@@ -870,6 +870,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         s_csi_tot[:,:,:,i_csi] = S.sigma_csi[:,:,:]
         g_csi_tot[:,:,:,i_csi] = gloc[:,:,:]
         mutilde_csi[i_csi]=para.g*v[i_csi]
+    mutildeold = True
 
     for band in range(0,para.nbands):
         g0[:,band,band] = 1.0/( omega[:] - delta[:,band,band] + (para.mu)*np.ones(len(omega),dtype=np.complex))
@@ -886,7 +887,10 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         for i_csi in range(0,len(v)):
 
             para.csi = para.g*v[i_csi]
-            para.mu_tilde = mutilde_csi[i_csi]
+            if mutildeold:
+                para.mu_tilde = mutilde_csi[i_csi]
+            else:
+                para.mutilde = para.csi    
             searching=True
             counter=0
             S.solve(para,delta)
@@ -957,6 +961,23 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
                 sigmaxi[:] = s_csi_tot[w,band,band,:]
                 gloc[w,band,band] = NumHilbert_disorder(z, probN/para.g, para.g*v, sigmaxi)
         #
+
+        #Adaptive length of the v vector
+        count=0
+        tot=0
+        for nv in range(0,int(len(v)/2.0)+1):
+            tot+=1
+            if probN[nv]<1e-3:
+                count+=1
+        #print("num of entries<0 =",count,"/", tot)
+        
+        mutildeold = True
+        fracm0 = count/tot
+        if fracm0>0.3:
+            mutildeold = False
+            dis = dis*(1.0-(count-1.0)/tot)
+
+        v = np.linspace(-dis, dis, para.disPoints)
 
         #data1 = np.column_stack((np.real(omega),np.imag(gloc[:,0,0]),np.real(gloc[:,0,0])))
         #filename1="gav_" + str(l) + ".dat"
