@@ -1004,7 +1004,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         #filename1="delta_" + str(l) + ".dat"
         #np.savetxt(filename1, data1)
 
-    print('probability=',prob)
+
 
 #---------------------------------------------------------------------------------------------------------------------------
 #------------------------CONVERGENCE----------------------------------------------------------------------------------------
@@ -1058,7 +1058,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         #np.savetxt(filename1, data1)
         
 #---------------------------------------------------------------------------------------------------------------------------
-
+    print('probability=',prob)
 
     print("Occupations:",getn_band(omega,gloc,fermi,para,0))
     data1 = np.column_stack((para.ULOC[0],para.ULOC[0],getn_band(omega,gloc,fermi,para,0)))
