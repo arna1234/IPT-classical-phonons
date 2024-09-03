@@ -975,6 +975,9 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         if fracm0>0.3:
             mutildeold = False
             dis = dis*(1.0-(count-1.0)/tot)
+        elif fracm0<0.001:
+            mutildeold = False
+            dis = dis+0.5
 
         v = np.linspace(-dis, dis, para.disPoints)
 
@@ -1058,7 +1061,7 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
         #np.savetxt(filename1, data1)
         
 #---------------------------------------------------------------------------------------------------------------------------
-    print('probability=',prob)
+    print('probability=',probN)
 
     print("Occupations:",getn_band(omega,gloc,fermi,para,0))
     data1 = np.column_stack((para.ULOC[0],para.ULOC[0],getn_band(omega,gloc,fermi,para,0)))
