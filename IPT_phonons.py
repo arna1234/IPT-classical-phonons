@@ -938,7 +938,9 @@ def IPT_loops(omega,hamiltonianList,sigma,fermi,mix0,number_of_threads,para):
 
 
         # Average gloc (with phonon probability (prob) and the linear interpolation (NumHilbert_disorder))
-        for band in range(0,para.nbands):         
+        for band in range(0,para.nbands):
+            # Probability for quenched disorder         
+            prob = np.exp(-v**2/(2.0))
             # Calculate the probability of thermal phonons
             if para.adaptivePhonons:
                 prob = np.exp(-para.beta*(para.k*v**2/(2.0) + np.real(Eel[:,band,band]) ) )
