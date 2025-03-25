@@ -7,7 +7,7 @@ mix=0.4
 adaptiveMixing=True
 
 #phonons parameters
-adaptivePhonons=true # true for using thermal disorder/ falso to use fixed distribution for disorder 
+adaptivePhonons=true # true for using thermal disorder/ false to use fixed distribution for disorder 
 k=1.0  # elastic constant
 g=1.0  # electron-disorder coupling
 disPoints=21
