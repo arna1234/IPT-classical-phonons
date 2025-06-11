@@ -17,5 +17,5 @@ $$
 where the electron energy is an approximation for the free-energy that cannot be calculated in an IPT context and it's expression is obtained by averaging over all the states the Hamiltonian. The final result is:
 
 $$
-E_{el}(X_i) = T\sum_{\omega_n}(\Delta(i\omega_n,X_i)-gX_i-\frac12\Sigma(i\omega_n,X_i))G_{ii}(i\omega_n,X_i)
+E_{el}(X_i) = T\sum_{\omega_n}(\Delta(i\omega_n,X_i)-gX_i+\frac12\Sigma(i\omega_n,X_i))G_{ii}(i\omega_n,X_i)
 $$
