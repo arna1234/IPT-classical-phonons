@@ -794,7 +794,7 @@ def electron_Energy(omega,delta,sigma_csi,g_csi,para):
         sigma_csi_iw[n] = ImFreq(z[n],omega,sigma_csi)
         g_csi_iw[n] = ImFreq(z[n],omega,g_csi)
     
-    return 2.0*np.sum((delta_iw-para.csi-sigma_csi_iw/2.0)*g_csi_iw)/para.beta
+    return 2.0*np.sum((delta_iw-para.csi+sigma_csi_iw/2.0)*g_csi_iw)/para.beta
 
 #+---------------------------------------------------------------------+
 #PURPOSE  : Interpolating integral for the disorder
